@@ -18,3 +18,5 @@ linaro-rootfs.img
 release
 build
 .lock
+chroot.headers
+wget-log*
