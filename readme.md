@@ -21,7 +21,6 @@ qemu-aarch64 version 2.5.0 (Debian 1:2.5+dfsg-5ubuntu10.51), Copyright (c) 2003-
 * If qemu version is 2.5.0 or belower than 4.1.0, need to build it manually.
 ```
 $ wget https://download.qemu.org/qemu-4.1.0.tar.xz 
-$ mkdir qemu-4.1.0
 $ tar -xf qemu-4.1.0.tar.xz
 $ cd qemu-4.1.0
 $ ./configure --target-list=aarch64-linux-user --static
