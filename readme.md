@@ -28,7 +28,7 @@ $ make
 ```
 * Then install it to your system manually.
 ```
-$ sudo cp aarch64-linux-user/qemu-aarch64 /usr/bin/qemu-aarch64-staic
+$ sudo ln -s aarch64-linux-user/qemu-aarch64 /usr/bin/qemu-aarch64-staic
 ```
 * qemu 4.1.0 will prevent to occur errors about unhandled signal.
 
