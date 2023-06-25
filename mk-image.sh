@@ -25,7 +25,7 @@ finish() {
 }
 
 echo Format rootfs to ext4
-echo y|mkfs.ext4 ${ROOTFSIMAGE}
+mkfs.ext4 ${ROOTFSIMAGE}
 
 echo Mount rootfs to ${MOUNTPOINT}
 sudo mount  ${ROOTFSIMAGE} ${MOUNTPOINT}
