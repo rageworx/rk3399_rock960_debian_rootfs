@@ -22,7 +22,7 @@ qemu-aarch64 version 2.5.0 (Debian 1:2.5+dfsg-5ubuntu10.51), Copyright (c) 2003-
 ```
 $ wget https://download.qemu.org/qemu-4.1.0.tar.xz 
 $ mkdir qemu-4.1.0
-$ tar -xf qemu-4.1.0.tar.xz -C qemu-4.1.0
+$ tar -xf qemu-4.1.0.tar.xz
 $ cd qemu-4.1.0
 $ ./configure --target-list=aarch64-linux-user --static
 $ make
