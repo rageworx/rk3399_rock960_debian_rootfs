@@ -21,15 +21,14 @@ qemu-aarch64 version 2.5.0 (Debian 1:2.5+dfsg-5ubuntu10.51), Copyright (c) 2003-
 * If qemu version is 2.5.0 or belower than 4.1.0, need to build it manually.
 ```
 $ wget https://download.qemu.org/qemu-4.1.0.tar.xz 
-$ mkdir qemu-4.1.0
-$ tar -xf qemu-4.1.0.tar.xz -C qemu-4.1.0
+$ tar -xf qemu-4.1.0.tar.xz
 $ cd qemu-4.1.0
 $ ./configure --target-list=aarch64-linux-user --static
 $ make
 ```
 * Then install it to your system manually.
 ```
-$ sudo cp aarch64-linux-user/qemu-aarch64 /usr/bin/qemu-aarch64-staic
+$ sudo ln -s aarch64-linux-user/qemu-aarch64 /usr/bin/qemu-aarch64-static
 ```
 * qemu 4.1.0 will prevent to occur errors about unhandled signal.
 
