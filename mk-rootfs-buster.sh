@@ -1,5 +1,9 @@
 #!/bin/bash -e
 
+# prevent perl warnings.
+export LC_ALL=C
+export LC_CTYPE=C
+
 # Directory contains the target rootfs
 TARGET_ROOTFS_DIR="binary"
 
@@ -13,15 +17,20 @@ else
 fi
 
 if [ ! $VERSION ]; then
-	VERSION="debug"
+	VERSION="release"
 fi
 
 if [ ! -e linaro-buster-alip-*.tar.gz ]; then
 	echo "\033[36m Run mk-base-debian.sh first \033[0m"
 fi
 
+MNTD=0
+
 finish() {
-	sudo umount $TARGET_ROOTFS_DIR/dev
+    echo -e "\033[31m Error occured !\033[0m"
+    if [ $MNTD -eq 1 ];then
+	    sudo umount $TARGET_ROOTFS_DIR/dev
+    fi
 	exit -1
 }
 trap finish ERR
@@ -36,6 +45,7 @@ sudo cp -rf packages/$ARCH/* $TARGET_ROOTFS_DIR/packages
 # some configs
 sudo cp -rf overlay/* $TARGET_ROOTFS_DIR/
 
+echo -e "\033[36m Copy wifi drivers \033[0m"
 if [ "$ARCH" == "armhf"  ]; then
     sudo cp overlay-firmware/usr/bin/brcm_patchram_plus1_32 $TARGET_ROOTFS_DIR/usr/bin/brcm_patchram_plus1
     sudo cp overlay-firmware/usr/bin/rk_wifi_init_32 $TARGET_ROOTFS_DIR/usr/bin/rk_wifi_init
@@ -45,13 +55,20 @@ elif [ "$ARCH" == "arm64"  ]; then
 fi
 
 # bt,wifi,audio firmware
-sudo mkdir -p $TARGET_ROOTFS_DIR/system/lib/modules/
+echo -e "\033[36m Copy BT,audio drivers \033[0m"
+if [ ! -e $TARGET_ROOTFS_DIR/system/lib/modules ];then
+    sudo mkdir -p $TARGET_ROOTFS_DIR/system/lib/modules/
+fi
+if [ -e ../kernel/drivers/net/wireless/rockchip_wlan ];then
 sudo find ../kernel/drivers/net/wireless/rockchip_wlan/*  -name "*.ko" | \
     xargs -n1 -i sudo cp {} $TARGET_ROOTFS_DIR/system/lib/modules/
+fi
 
+echo -e "\033[36m Copy overlay firmwares \033[0m"
 sudo cp -rf overlay-firmware/* $TARGET_ROOTFS_DIR/
 
 if [ -d "../modules" ]; then
+    echo -e "\033[36m Copy addtional modules \033[0m"
     sudo cp -r ../modules/lib/modules $TARGET_ROOTFS_DIR/lib
 fi
 
@@ -94,19 +111,25 @@ if [ "$ARCH" == "armhf" ]; then
 elif [ "$ARCH" == "arm64"  ]; then
 	sudo cp /usr/bin/qemu-aarch64-static $TARGET_ROOTFS_DIR/usr/bin/
 fi
+
+echo -e " ... Bind-mounting /dev to $TARGET_ROOTFS_DIR/dev ... "
 sudo mount -o bind /dev $TARGET_ROOTFS_DIR/dev
+MNTD=1
 
 cat << EOF | sudo chroot $TARGET_ROOTFS_DIR
 
 chmod o+x /usr/lib/dbus-1.0/dbus-daemon-launch-helper
 apt-get update
+apt-get upgrade
 apt-get install -y lxpolkit
-# -- no longer needed on debian-10 -- apt-get install -y blueman
+
 echo exit 101 > /usr/sbin/policy-rc.d
 chmod +x /usr/sbin/policy-rc.d
 
-#-------------- systemd-sysv + vim, not vi --------------
-apt-get install -y systemd-sysv vim
+#---------------vim, vbetool, hdparm, ethtool-------
+rm -rf /usr/share/vim/vim81/doc/*
+apt-get install -y vim vim-runtime
+apt --fix-broken install vbetool hdparm ethtool
 
 #---------------power management --------------
 apt-get install -y busybox pm-utils triggerhappy
@@ -114,73 +137,47 @@ cp /etc/Powermanager/triggerhappy.service  /lib/systemd/system/triggerhappy.serv
 
 #---------------ForwardPort Linaro overlay --------------
 apt-get install -y e2fsprogs
-wget http://repo.linaro.org/ubuntu/linaro-overlay/pool/main/l/linaro-overlay/linaro-overlay-minimal_1112.10_all.deb
-wget http://repo.linaro.org/ubuntu/linaro-overlay/pool/main/9/96boards-tools/96boards-tools-common_0.9_all.deb
-dpkg -i *.deb
-rm -rf *.deb
-apt-get install -f -y
 
 #---------------conflict workaround --------------
 apt-get remove -y xserver-xorg-input-evdev
-apt-get install -y libxfont-dev libinput-bin libinput10 libwacom-common libwacom2 libunwind8 xserver-xorg-input-libinput libdmx1  libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xf86dri0 libxcb-xv0 libpixman-1-dev  libxkbfile-dev libpciaccess-dev mesa-common-dev
-
-#---------XFCE4 Power control------
-apt-get install -y xfce4-power-manager xfce4-power-manager-plugins
+apt-get --fix-broken install -y xserver-xorg-input-all
+apt-get --fix-broken install -y libfontenc-dev
+apt-get --fix-broken install -y libx11-dev
+apt-get --fix-broken install -y libdrm-dev
+apt-get --fix-broken install -y libxfont-dev
+apt-get --fix-broken install -y libunwind8 xserver-xorg-input-libinput 
+apt-get --fix-broken install -y libdmx1 
+apt-get --fix-broken install -y ibxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xf86dri0 libxcb-xv0 libpixman-1-dev
+apt-get --fix-broken install -y libxkbfile-dev libpciaccess-dev 
+apt-get --fix-broken install -y mesa-common-dev
 
 #---------------Video--------------
 echo -e "\033[36m Setup Video.................... \033[0m"
 apt-get install -y gstreamer1.0-plugins-base gstreamer1.0-tools gstreamer1.0-alsa gstreamer1.0-plugins-good  gstreamer1.0-plugins-bad alsa-utils
 
-dpkg -i  /packages/$ARCH/video/mpp/*.deb
-# dpkg -i  /packages/$ARCH/video/gstreamer/*.deb
-apt-get install -f -y
-
-#---------------Qt-Video--------------
-dpkg -l | grep lxde
-if [ "$?" -eq 0 ]; then
-	# if target is base, we won't install qt
-	apt-get install  -y libqt5opengl5 libqt5qml5 libqt5quick5 libqt5widgets5 libqt5gui5 libqt5core5a qml-module-qtquick2 libqt5multimedia5 libqt5multimedia5-plugins libqt5multimediaquick-p5
-	#dpkg -i  /packages/video/qt/*
-	apt-get install -f -y
-else
-	echo "won't install qt"
+if [ -e /packages/$ARCH/video/mpp ];then
+    dpkg -i  /packages/$ARCH/video/mpp/*.deb
+    apt-get install -f -y
 fi
 
 #-----------MESA, XFCE4-----------
-apt-get remove mesa-common-dev -y
-apt-get install nano pciutils
-
-apt-get remove gnome-shell gnome-session* -y
-apt-get install xfce4 lightdm -y
-apt-get install --reinstall libgdk-pixbuf2.0-0
+apt-get install -y nano pciutils
+apt-get remove -y gnome-shell gnome-session*
+apt-get install -y gnome-session-bin gnome-shell gdm3
+apt-get install -y xfce4 lightdm
+apt-get install -y xfce4-power-manager xfce4-power-manager-plugins
 
 #--------------libdrm----------------
-dpkg -i /packages/$ARCH/libdrm/libdrm-rockchip*_$ARCH.deb
-apt-get install -f -y
+if [ -e /packages/$ARCH/libdrm ];then
+   dpkg -i /packages/$ARCH/libdrm/libdrm-rockchip*_$ARCH.deb
+   apt-get install -f -y
+fi
 
 #---------------TODO: USE DEB-------------- 
 #---------------Setup Graphics-------------- 
 apt-get install -y weston
-#cd /usr/lib/aarch64-linux-gnu
-#ln -s libmali-midgard-t86x-r18p0-wayland.so libmali-bifrost-g31-rxp0-wayland-gbm.so
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libEGL.so
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libEGL.so.1
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libEGL.so.1.0.0
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libGLESv2.so
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libGLESv2.so.2
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libGLESv2.so.2.0.0
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libMaliOpenCL.so
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libOpenCL.so
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libgbm.so
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libgbm.so.1
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libgbm.so.1.0.0
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libwayland-egl.so
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libwayland-egl.so.1
-#ln -sf libmali-bifrost-g31-rxp0-wayland-gbm.so libwayland-egl.so.1.0.0
-#cd /
 
 #---------------Others--------------
-
 #---------SDL2+FFmpeg---------
 apt-get install -y libsdl2-2.0-0:$ARCH libcdio-paranoia1:$ARCH libjs-bootstrap:$ARCH libjs-jquery:$ARCH
 apt-get install -y ffmpeg:$ARCH
@@ -204,3 +201,4 @@ apt-get autoremove
 EOF
 
 sudo umount $TARGET_ROOTFS_DIR/dev
+MNTD=0
