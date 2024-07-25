@@ -17,7 +17,7 @@ else
 fi
 
 if [ ! $VERSION ]; then
-	VERSION="release"
+	VERSION="debug"
 fi
 
 if [ ! -e linaro-buster-alip-*.tar.gz ]; then
@@ -137,6 +137,11 @@ cp /etc/Powermanager/triggerhappy.service  /lib/systemd/system/triggerhappy.serv
 
 #---------------ForwardPort Linaro overlay --------------
 apt-get install -y e2fsprogs
+wget https://releases.linaro.org/obs/linaro-overlay-buster/buster/all/linaro-overlay-minimal_1112.14_all.deb
+wget https://releases.linaro.org/obs/linaro-overlay-buster/buster/all/96boards-tools-common_0.9_all.deb
+dkpg -i *.deb
+rm -rf *.deb
+apt-get --fix-broken install -f -y
 
 #---------------conflict workaround --------------
 apt-get remove -y xserver-xorg-input-evdev
@@ -174,10 +179,7 @@ if [ -e /packages/$ARCH/libdrm ];then
 fi
 
 #---------------TODO: USE DEB-------------- 
-#---------------Setup Graphics-------------- 
-apt-get install -y weston
 
-#---------------Others--------------
 #---------SDL2+FFmpeg---------
 apt-get install -y libsdl2-2.0-0:$ARCH libcdio-paranoia1:$ARCH libjs-bootstrap:$ARCH libjs-jquery:$ARCH
 apt-get install -y ffmpeg:$ARCH
