@@ -126,10 +126,10 @@ apt-get install -y lxpolkit
 echo exit 101 > /usr/sbin/policy-rc.d
 chmod +x /usr/sbin/policy-rc.d
 
-#---------------vim, vbetool, hdparm, ethtool-------
+#---------------vim, hdparm, ethtool-------
 rm -rf /usr/share/vim/vim81/doc/*
 apt-get install -y vim vim-runtime
-apt --fix-broken install vbetool hdparm ethtool
+apt --fix-broken install hdparm ethtool
 
 #---------------power management --------------
 apt-get install -y busybox pm-utils triggerhappy
