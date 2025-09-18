@@ -1,47 +1,33 @@
 #!/bin/bash -e
 
 TARGET_ROOTFS_DIR=./binary
-MOUNTPOINT=./rootfs
-ROOTFSIMAGE=linaro-rootfs.img
-OUT=../out
+
+if [ $RK_ROOTFS_IMAGE ]; then
+	ROOTFSIMAGE=$RK_ROOTFS_IMAGE
+else
+	ROOTFSIMAGE=linaro-$SOC-$TARGET-rootfs.img
+fi
 
 echo Making rootfs!
 
-if [ -e ${ROOTFSIMAGE} ]; then 
-	rm ${ROOTFSIMAGE}
-fi
-if [ -e ${MOUNTPOINT} ]; then 
-	rm -r ${MOUNTPOINT}
+if [ -e ${ROOTFSIMAGE} ]; then
+	rm -f ${ROOTFSIMAGE}
 fi
 
-# Create directories
-mkdir ${MOUNTPOINT}
-dd if=/dev/zero of=${ROOTFSIMAGE} bs=1M count=0 seek=4000
+# for script in ./post-build.sh ../device/rockchip/common/post-build.sh; do
+# 	[ -x $script ] || continue
+# 	sudo $script "$(realpath "$TARGET_ROOTFS_DIR")"
+# done
 
-finish() {
-	sudo umount ${MOUNTPOINT} || true
-	echo -e "\e[31m MAKE ROOTFS FAILED.\e[0m"
-	exit -1
-}
+sudo ./add-build-info.sh ${TARGET_ROOTFS_DIR}
 
-echo Format rootfs to ext4
-echo y|mkfs.ext4 ${ROOTFSIMAGE}
+# Apparent size + maxium alignment(file_count * block_size) + maxium journal size
+IMAGE_SIZE_MB=$(( $(sudo du --apparent-size -sm ${TARGET_ROOTFS_DIR} | cut -f1) + \
+	$(sudo find ${TARGET_ROOTFS_DIR} | wc -l) * 4 / 1024 + 64 ))
 
-echo Mount rootfs to ${MOUNTPOINT}
-sudo mount  ${ROOTFSIMAGE} ${MOUNTPOINT}
-trap finish ERR
+# Extra 10%
+IMAGE_SIZE_MB=$(( $IMAGE_SIZE_MB * 110 / 100 ))
 
-echo Copy rootfs to ${MOUNTPOINT}
-sudo cp -rfp ${TARGET_ROOTFS_DIR}/*  ${MOUNTPOINT}
-
-echo Umount rootfs
-sudo umount ${MOUNTPOINT}
+sudo mkfs.ext4 -d ${TARGET_ROOTFS_DIR} ${ROOTFSIMAGE} ${IMAGE_SIZE_MB}M
 
 echo Rootfs Image: ${ROOTFSIMAGE}
-
-e2fsck -p -f ${ROOTFSIMAGE}
-resize2fs -M ${ROOTFSIMAGE}
-
-[ ! -d ${OUT} ] && mkdir ${OUT}
-cp $ROOTFSIMAGE ${OUT}
-

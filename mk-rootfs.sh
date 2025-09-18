@@ -1,11 +1,11 @@
 #!/bin/bash -e
 
 if [ ! $RELEASE ]; then
-	RELEASE='stretch'
+	RELEASE='bookworm'
 fi
 
 if [ ! $ARCH ]; then
 	ARCH='arm64'
 fi
 
-./mk-rootfs-$RELEASE.sh
+./mk-$RELEASE-rootfs.sh
