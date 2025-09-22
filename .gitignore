@@ -18,3 +18,6 @@ linaro-rootfs.img
 release
 build
 .lock
+*.img
+*.gz
+wget-*
